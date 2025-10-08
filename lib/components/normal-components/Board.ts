@@ -219,6 +219,14 @@ export class Board extends Group<typeof boardProps> {
     db.pcb_board.update(this.pcb_board_id, update)
   }
 
+    doInitialSourceRender(): void {
+    const { db } = this.root!
+    const source_board = (db as any).source_board.insert({
+      type: "source_board",
+      title: this.props.title,
+    })
+  }
+
   // Recompute autosize after child components update (e.g., async footprints)
   updatePcbBoardAutoSize(): void {
     // Reuse the same logic as initial autosize; it is idempotent
@@ -340,68 +348,69 @@ export class Board extends Group<typeof boardProps> {
     this._addBoardInformationToSilkscreen()
   }
 
+  
   removePcbComponentRender(): void {
     const { db } = this.root!
     if (!this.pcb_board_id) return
     db.pcb_board.delete(this.pcb_board_id!)
     this.pcb_board_id = null
   }
-
+  
   _computePcbGlobalTransformBeforeLayout(): Matrix {
     return identity()
   }
-
+  
   doInitialPcbDesignRuleChecks() {
     if (this.root?.pcbDisabled) return
     if (this.getInheritedProperty("routingDisabled")) return
-
+    
     super.doInitialPcbDesignRuleChecks()
   }
-
+  
   updatePcbDesignRuleChecks() {
     if (this.root?.pcbDisabled) return
     if (this.getInheritedProperty("routingDisabled")) return
     const { db } = this.root!
-
+    
     if (!this._areChildSubcircuitsRouted()) return
-
+    
     // Only run once after all autorouting is complete
     if (this._drcChecksComplete) return
     this._drcChecksComplete = true
-
+    
     const errors = checkEachPcbTraceNonOverlapping(db.toArray())
     for (const error of errors) {
       db.pcb_trace_error.insert(error)
     }
-
+    
     const pcbPortNotConnectedErrors = checkEachPcbPortConnectedToPcbTraces(
       db.toArray(),
     )
     for (const error of pcbPortNotConnectedErrors) {
       db.pcb_port_not_connected_error.insert(error)
     }
-
+    
     const pcbComponentOutsideErrors = checkPcbComponentsOutOfBoard(db.toArray())
     for (const error of pcbComponentOutsideErrors) {
       db.pcb_component_outside_board_error.insert(error)
     }
-
+    
     const pcbTracesOutOfBoardErrors = checkPcbTracesOutOfBoard(db.toArray())
     for (const error of pcbTracesOutOfBoardErrors) {
       db.pcb_trace_error.insert(error)
     }
-
+    
     const differentNetViaErrors = checkDifferentNetViaSpacing(db.toArray())
     for (const error of differentNetViaErrors) {
       db.pcb_via_clearance_error.insert(error)
     }
-
+    
     const sameNetViaErrors = checkSameNetViaSpacing(db.toArray())
     for (const error of sameNetViaErrors) {
       db.pcb_via_clearance_error.insert(error)
     }
   }
-
+  
   override _emitRenderLifecycleEvent(
     phase: RenderPhase,
     startOrEnd: "start" | "end",
